@@ -109,10 +109,9 @@ header.solido .marca img{height:38px}
 
 /* ===== FAIXA ===== */
 .faixa{background:var(--amarelo);color:var(--verde-noite);overflow:hidden;padding:18px 0;transform:rotate(-1.4deg);margin:-26px -10px 0;position:relative;z-index:5;box-shadow:0 15px 40px -15px rgba(0,0,0,.35)}
-.faixa .trilho{display:flex;gap:44px;width:max-content;animation:corre 32s linear infinite;font-family:'Baloo 2';font-weight:800;font-size:1.55rem;text-transform:uppercase}
-.faixa .trilho span{display:flex;align-items:center;gap:44px;white-space:nowrap}
-.faixa .trilho span::after{content:"";width:22px;height:22px;background:var(--verde);border-radius:0 70% 0 70%}
-@keyframes corre{to{transform:translateX(-50%)}}
+.faixa .trilho{position:relative;height:2.2rem;font-family:'Baloo 2';font-weight:800;font-size:1.55rem;text-transform:uppercase;line-height:2.2rem}
+.faixa .trilho span{position:absolute;left:0;top:0;display:flex;align-items:center;gap:22px;white-space:nowrap;padding-right:22px}
+.faixa .trilho span::after{content:"";width:22px;height:22px;flex:none;background:var(--verde);border-radius:0 70% 0 70%}
 
 section{position:relative}
 .secao{padding:120px 0}
@@ -349,7 +348,8 @@ footer::before{content:"";position:absolute;left:-120px;bottom:-140px;width:380p
   .rod{grid-template-columns:1fr}
   .info-box{padding:26px}
   .mapa{min-height:340px}
-  .faixa .trilho{font-size:1.15rem}
+  .faixa .trilho{font-size:1.15rem;height:1.8rem;line-height:1.8rem}
+  .faixa .trilho span::after{width:16px;height:16px}
   .marca b{font-size:1.2rem}
   .toggle button{padding:10px 16px;font-size:.88rem}
   .flutua{right:14px;bottom:14px}
@@ -660,8 +660,26 @@ $('#ano').textContent=new Date().getFullYear();
 
 /* faixa */
 const palavras=['Buffet livre','Delivery','Marmitas congeladas','Carnes','Vegano','Vegetariano','Comida de verdade'];
-const bloco=palavras.map(p=>`<span>${p}</span>`).join('');
-$('#trilho').innerHTML=bloco+bloco+bloco+bloco;
+/* cada palavra se move sozinha (evita camada gigante que o iPhone não desenha) */
+const trilho=$('#trilho');
+let itensF=[], larguraTotal=0;
+function montaFaixa(){
+  trilho.innerHTML='';itensF=[];let x=0;
+  while(x<innerWidth*2+400||itensF.length<palavras.length){
+    const el=document.createElement('span');el.textContent=palavras[itensF.length%palavras.length];trilho.appendChild(el);
+    const w=el.offsetWidth+22;itensF.push({el,x,w});x+=w;
+  }
+  larguraTotal=x;
+}
+montaFaixa();
+let tAnt=performance.now();
+(function anda(t){
+  const dx=Math.min(64,t-tAnt)*0.06;tAnt=t;
+  for(const it of itensF){it.x-=dx;if(it.x+it.w<-20)it.x+=larguraTotal;it.el.style.transform=`translate3d(${it.x.toFixed(1)}px,0,0)`;}
+  requestAnimationFrame(anda);
+})(tAnt);
+addEventListener('resize',()=>{clearTimeout(window._rf);window._rf=setTimeout(montaFaixa,200)});
+document.fonts&&document.fonts.ready.then(montaFaixa);
 
 /* ===== loader + vídeo como blob (scrub suave) ===== */
 const vid=$('#vid');
