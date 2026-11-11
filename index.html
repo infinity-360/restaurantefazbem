@@ -82,7 +82,11 @@ header.solido .marca img{height:38px}
 .folha.b{width:38vmin;height:38vmin;right:-10vmin;bottom:-8vmin;background:var(--amarelo);opacity:.9;border-radius:70% 0 70% 0}
 .folha.c{width:16vmin;height:16vmin;right:14vw;top:12vh;opacity:.4}
 .janela{position:relative;top:4vh;width:var(--w,30vmin);height:var(--h,30vmin);border-radius:var(--r,50%);overflow:hidden;z-index:2;box-shadow:0 30px 80px -20px rgba(0,0,0,.6);will-change:width,height,border-radius;background:#000}
-.janela video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.janela video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .4s;z-index:1}
+.janela.video-ok video{opacity:1}
+.janela .slides img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .5s}
+.janela .slides img.on{opacity:1}
+.janela::after{z-index:2}
 .janela::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(3,48,26,.15) 0%,rgba(3,48,26,0) 40%,rgba(3,48,26,.75) 100%);opacity:var(--escuro,0)}
 .hero-txt{position:absolute;z-index:3;text-align:center;color:#fff;width:min(1000px,92%);pointer-events:none;transition:opacity .2s}
 .hero-txt h1{font-size:clamp(2.3rem,5.6vw,5.4rem);margin-top:14px;font-weight:800;text-shadow:0 6px 30px rgba(0,0,0,.35)}
@@ -386,7 +390,8 @@ footer::before{content:"";position:absolute;left:-120px;bottom:-140px;width:380p
     <div class="hero-txt hero-topo" id="heroTopo"><span class="tag claro">Restaurante e Marmitaria • Maringá</span>
       <h1>Comida de <span>verdade</span><br>pra todos os gostos</h1></div>
     <div class="janela" id="janela">
-      <video id="vid" src="video-fazbem.mp4" muted playsinline preload="auto" poster="fachada.jpg"></video>
+      <div class="slides" id="slides"><img src="fachada.jpg" alt="" class="on"><img src="ambiente.jpg" alt=""><img src="buffet-saladas.jpg" alt=""><img src="buffet-quente.jpg" alt=""><img src="marmita-video.jpg" alt=""></div>
+      <video id="vid" src="video-fazbem.mp4" muted playsinline webkit-playsinline preload="auto" poster="fachada.jpg"></video>
     </div>
     <div class="hero-txt hero-base" id="heroBase">
       <p>Buffet livre • Marmitas • Delivery • Vegano</p>
@@ -668,11 +673,25 @@ function some(){ if(pronto) return; pronto=true; $('#carga').style.width='100%';
     const total=+r.headers.get('content-length')||0; const leitor=r.body.getReader(); const partes=[]; let rec=0;
     while(true){const {done,value}=await leitor.read(); if(done)break; partes.push(value); rec+=value.length; if(total) $('#carga').style.width=(rec/total*100)+'%';}
     vid.src=URL.createObjectURL(new Blob(partes,{type:'video/mp4'}));
+    vid.load();
   }catch(e){}
-  vid.addEventListener('loadeddata',some,{once:true});
+  vid.addEventListener('loadeddata',()=>{some();destrava();},{once:true});
   setTimeout(some,2500);
 })();
 setTimeout(some,5000);
+
+/* iPhone/iOS: o vídeo só desenha quadros depois de um play(). Toca e pausa na hora (mudo é permitido). */
+let destravado=false;
+function destrava(){
+  if(destravado) return;
+  const pr=vid.play();
+  if(pr&&pr.then){pr.then(()=>{vid.pause();destravado=true;vid.currentTime=atualT||0.01;}).catch(()=>{});}
+}
+['touchstart','pointerdown','scroll','click'].forEach(ev=>addEventListener(ev,destrava,{passive:true}));
+function marcaVideoOk(){ if(vid.readyState>=2) janela.classList.add('video-ok'); }
+vid.addEventListener('seeked',marcaVideoOk);
+vid.addEventListener('playing',marcaVideoOk);
+vid.addEventListener('loadeddata',()=>{ if(!/iPhone|iPad|iPod/.test(navigator.userAgent)&&!(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)) marcaVideoOk(); });
 
 /* ===== HERO SCROLL ===== */
 const hero=$('#inicio'), janela=$('#janela'), legs=$$('.legenda'), topoTxt=$('#heroTopo'), baseTxt=$('#heroBase'), barra=$('#barraProg');
@@ -693,6 +712,8 @@ function heroScroll(){
   legs.forEach(l=>l.classList.toggle('on',p>=+l.dataset.de&&p<+l.dataset.ate));
   barra.style.height=(p*100)+'%';
   if(vid.duration) alvoT=clamp((p-.08)/.92)*(vid.duration-.05);
+  const sl=$$('#slides img'), k=Math.min(sl.length-1,Math.floor(clamp((p-.08)/.92)*sl.length));
+  sl.forEach((im,i)=>im.classList.toggle('on',i===k));
 }
 function loopVideo(){
   if(vid.duration && Math.abs(alvoT-atualT)>.005){
